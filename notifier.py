@@ -1,8 +1,6 @@
-from plyer import notification
+from win10toast import ToastNotifier
+
+toaster = ToastNotifier()
 
 def send_notification(title, message):
-    notification.notify(
-        title=title,
-        message=message,
-        app_name='Desktop Notifier'
-    )
+    toaster.show_toast(title, message, duration=10)
