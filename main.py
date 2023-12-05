@@ -3,13 +3,39 @@ from tkinter import simpledialog, messagebox
 import json
 import time
 from threading import Thread
-import winsound
+from PIL import Image, ImageTk
 from plyer import notification
+import sys
+import os
 
 class PomodoroApp:
     def __init__(self, master):
         self.master = master
-        self.master.title("Pomodoro Timer")
+        self.master.title("뽀모도로타이머")
+
+        # Determine the base path to load resources
+        if getattr(sys, 'frozen', False):
+            # Running in PyInstaller Bundle
+            base_path = sys._MEIPASS
+        else:
+            # Running in normal Python environment
+            base_path = os.path.dirname(os.path.abspath(__file__))
+
+        # Load and resize the logo image
+        self.logo_path = os.path.join(base_path, "bbomologo.png")
+        self.logo_image = Image.open(self.logo_path)
+        self.logo_image = self.logo_image.resize((100, 100))
+
+        # self.logo_image = self.logo_image.resize((100, 100))
+        self.logo_photo = ImageTk.PhotoImage(self.logo_image)
+
+        # Add the logo to the tkinter window
+        self.logo_label = tk.Label(self.master, image=self.logo_photo)
+        self.logo_label.image = self.logo_photo  # keep a reference
+
+        self.completed_work_sessions = 0
+        self.completed_rest_sessions = 0
+
 
         self.load_settings()
         self.setup_gui()
@@ -36,9 +62,13 @@ class PomodoroApp:
             json.dump(self.settings, file)
 
     def setup_gui(self):
-        self.timer_label = tk.Label(self.master, text=self.format_time(self.settings["work_duration"]), font=("Arial", 48))
-        self.timer_label.pack()
+        self.timer_title = tk.Label(self.master, text="나의 뽀모도로", font=("Arial", 32), pady=10)
+        self.timer_title.pack()
 
+        self.logo_label.pack(side=tk.TOP, pady=10)
+
+        self.timer_label = tk.Label(self.master, text=self.format_time(self.settings["work_duration"]), font=("Arial", 20))
+        self.timer_label.pack()
         self.start_button = tk.Button(self.master, text="Start", command=self.start_timer)
         self.start_button.pack()
 
@@ -60,11 +90,20 @@ class PomodoroApp:
         self.settings_button = tk.Button(self.master, text="Settings", command=self.open_settings_window)
         self.settings_button.pack()
 
+        self.statistics_label = tk.Label(self.master, text="완료된 세션: 0 작업, 0 휴식", font=("Arial", 14))
+        self.statistics_label.pack()
+
+    def update_statistics_label(self):
+        self.statistics_label.config(
+            text=f"완료된 세션: {self.completed_work_sessions} 작업, {self.completed_rest_sessions} 휴식")
+
     def open_settings_window(self):
         self.settings_window = tk.Toplevel(self.master)
-        self.settings_window.title("Settings")
+        self.settings_window.title("세팅")
         # 부모 창 비활성화
         self.settings_window.grab_set()
+        self.settings_window.geometry("400x300")  # Set the size of the settings window
+
 
         # 스타일 설정
         self.settings_window.configure(bg='lightgray')
@@ -166,14 +205,19 @@ class PomodoroApp:
             self.timer_thread.start()
 
     def stop_timer(self):
-        self.running = False
-        if self.timer_thread and self.timer_thread.is_alive():
-            self.timer_thread.join()
+        if self.running:
+            self.show_message("타이머 중지", "뽀모도로 타이머가 중지되었습니다.")
+            self.running = False
+            if self.timer_thread and self.timer_thread.is_alive():
+                self.timer_thread.join()
 
     def run_timer(self):
         try:
             while self.running:
                 # 작업 시간 타이머
+                if self.running:
+                    self.completed_work_sessions += 1
+                    self.update_statistics_label()
                 self.current_time = self.settings["work_duration"]
                 self.session_count += 1
 
@@ -182,6 +226,9 @@ class PomodoroApp:
                     self.update_timer()
 
                 if self.running:
+                    if self.running:
+                        self.completed_rest_sessions += 1
+                        self.update_statistics_label()
                     # 휴식 시간 타이머
                     if self.session_count % self.settings["long_rest_interval"] == 0:
                         self.current_time = self.settings["long_rest_duration"]
@@ -208,7 +255,12 @@ class PomodoroApp:
         self.timer_label.update()
 
     def show_message(self, title, message):
-        notification.notify(title=title, message=message, app_name='Pomodoro Timer', timeout=10)
+        notification.notify(
+            title=title,
+            message=message,
+            app_name="뽀모도로타이머",  # Set the app name as "뽀모도로타이머"
+            timeout=10
+        )
 
     def format_time(self, seconds):
         mins, secs = divmod(seconds, 60)
@@ -230,6 +282,19 @@ class PomodoroApp:
 
 if __name__ == '__main__':
     root = tk.Tk()
+    root.geometry("500x300")  # Set the initial size of the main window
+    root.minsize(500, 500)  # Set the minimum size of the main window
+
+    # Check if running as a PyInstaller bundle and set the icon path accordingly
+    if getattr(sys, 'frozen', False):
+        icon_path = os.path.join(sys._MEIPASS, "desktopnotifier.ico")
+    else:
+        icon_path = "desktopnotifier.ico"
+
+    root.iconbitmap(icon_path)  # Set the window icon
+
     app = PomodoroApp(root)
     root.protocol("WM_DELETE_WINDOW", app.close_app)
     root.mainloop()
+
+
