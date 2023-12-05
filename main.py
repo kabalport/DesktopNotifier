@@ -36,7 +36,7 @@ class PomodoroApp:
         self.completed_work_sessions = 0
         self.completed_rest_sessions = 0
 
-
+        self.task_list = []
         self.load_settings()
         self.setup_gui()
         self.running = False
@@ -56,6 +56,18 @@ class PomodoroApp:
                 "long_rest_duration": 900,
                 "long_rest_interval": 4
             }
+    # 세션 기록 저장 메서드
+    def save_session_log(self):
+        filename = f"pomodoro_sessions_{time.strftime('%Y%m%d-%H%M%S')}.txt"
+        with open(filename, 'w') as file:
+            file.write("뽀모도로 세션 기록\n")
+            file.write(f"작업 세션 수: {self.completed_work_sessions}\n")
+            file.write(f"휴식 세션 수: {self.completed_rest_sessions}\n")
+            file.write("작업 목록:\n")
+            for task in self.task_list:
+                file.write(f"- {task}\n")
+
+        messagebox.showinfo("세션 기록 저장", f"'{filename}'에 세션 기록이 저장되었습니다.")
 
     def save_settings(self):
         with open('settings.json', 'w') as file:
@@ -64,6 +76,7 @@ class PomodoroApp:
     def setup_gui(self):
         self.timer_title = tk.Label(self.master, text="나의 뽀모도로", font=("Arial", 32), pady=10)
         self.timer_title.pack()
+        self.setup_task_list_gui()
 
         self.logo_label.pack(side=tk.TOP, pady=10)
 
@@ -92,6 +105,29 @@ class PomodoroApp:
 
         self.statistics_label = tk.Label(self.master, text="완료된 세션: 0 작업, 0 휴식", font=("Arial", 14))
         self.statistics_label.pack()
+        self.save_log_button = tk.Button(self.master, text="세션 기록 저장", command=self.save_session_log)
+        self.save_log_button.pack()
+    # 작업 목록 GUI 추가
+    def setup_task_list_gui(self):
+        self.task_list_frame = tk.LabelFrame(self.master, text="작업 목록", font=("Arial", 14))
+        self.task_list_frame.pack(fill="both", expand="yes", padx=10, pady=10)
+
+        self.task_entry = tk.Entry(self.task_list_frame, width=50)
+        self.task_entry.pack(side=tk.LEFT, padx=5)
+
+        self.add_task_button = tk.Button(self.task_list_frame, text="추가", command=self.add_task)
+        self.add_task_button.pack(side=tk.LEFT, padx=5)
+
+        self.task_listbox = tk.Listbox(self.task_list_frame, height=5)
+        self.task_listbox.pack(fill="both", expand="yes", padx=5, pady=5)
+
+    # 작업 추가 메서드
+    def add_task(self):
+        task = self.task_entry.get()
+        if task:
+            self.task_listbox.insert(tk.END, task)
+            self.task_list.append(task)
+            self.task_entry.delete(0, tk.END)
 
     def update_statistics_label(self):
         self.statistics_label.config(
